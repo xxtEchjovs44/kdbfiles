@@ -1,0 +1,3 @@
+cat featureMatrix.csv
+head -1 featureMatrix.csv | sed 's/[^,]//g' | wc -c
+
