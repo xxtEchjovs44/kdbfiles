@@ -6,6 +6,9 @@
 /start IPC TCP/IP broadcast on port 5001
 \p 5001
 
+/load ml toolkit
+\l ml/ml.q 
+.ml.loadfile`:init.q 
 
 /load data
 "time & space taken to load CSVs"
@@ -44,22 +47,22 @@ PIDData:(`$ssr[;"[/]";""] each trim each string cols PIDData)xcol PIDData
 /adjust time data such that first time is 0us
 if[res:(PIDData[`timeus] 0)<(GPSData[`timeus] 0); startTime:PIDData[`timeus] 0] /if PID start time is earlier than GPS start time
 if[not res; startTime:GPSData[`timeus] 0] /else statement
-delete res from `. /delete res variable that is no longer needed
+delete res from `. ; /delete res variable that is no longer needed
 /writing "GPSData[`timeus] 0" is the same as writing "first GPSData[`timeus]"
 
 update timeus:timeus-startTime from `GPSData;
 
 update timeus:timeus-startTime from `PIDData;
 
-delete startTime from `. /delete startTime variable that is no longer needed
+delete startTime from `. ; /delete startTime variable that is no longer needed
 
 
 /convert us to ns
-update timeus:1000*timeus[i] from `GPSData; /multiply us by 1000 /updates in place
+update timeus:1000*timeus from `GPSData; /multiply us by 1000 /updates in place
 GPSData:`timeus xcols GPSData /move timeus to front
 GPSData:`timens xcol GPSData /rename timeus to timens
 
-update timeus:1000*timeus[i] from `PIDData;
+update timeus:1000*timeus from `PIDData;
 PIDData:`timeus xcols PIDData /move timeus to front
 PIDData:`timens xcol PIDData /rename timeus to timens
 
@@ -67,10 +70,11 @@ PIDData:`timens xcol PIDData /rename timeus to timens
 /switch to maximum precision for aj operation
 / \P 0 /disabled
 
-/cast from ns to timespan
-update timens:`timespan$`long$timens[i] from `GPSData; /must cast to long first! /from long cast to timespan
 
-update timens:`timespan$`long$timens[i] from `PIDData; 
+/cast from ns to timespan
+update timens:`timespan$`long$timens from `GPSData; /must cast to long first! /from long cast to timespan
+
+update timens:`timespan$`long$timens from `PIDData; 
 
 
 /key PIDData and GPSData tables with timens column
@@ -90,7 +94,7 @@ trainingData;
 / https://stackoverflow.com/questions/34314997/how-to-delete-only-tables-in-kdb
 /![`.;();0b;enlist `fullLog] /if only deleting fullLog (single table)
 /![`.;();0b;enlist `fullLog]
-![`.;();0b;(`fullLog;`GPSData;`PIDData)] /deletes tables fullLog, GPSData, PIDData
+![`.;();0b;(`fullLog;`GPSData;`PIDData)]; /deletes tables fullLog, GPSData, PIDData
 
 
 /in trainingData table, convert timestamps from ns to us
@@ -106,9 +110,10 @@ delete GPSspeedms from `trainingData;
 
 
 /create new column of sample time deltas
-update timeDeltaus:timeus[i+1]-timeus[i] from `trainingData;
+update timeDeltaus:`float$timeus[i+1]-timeus[i] from `trainingData;
+update timeus:`float$timeus from `trainingData;
 trainingData:`timeDeltaus xcols trainingData; /place that new column in front
-`timeus xkey `trainingData;
+/`timeus xkey `trainingData; /do not key the table or it will become a dictionary! must be a table to convert to dictionary
 
 /find out average sample rate
 /this query returns a table of single row
@@ -116,6 +121,26 @@ trainingData:`timeDeltaus xcols trainingData; /place that new column in front
 /the 1st 'first' argument gets list from dictionary (read from right)
 /the 2nd 'first argument' (read from right) gets the first element/atom in the list
 /returns type of -9h to indicate it is a float atom
-"average sample frequency"
 averageFreq:reciprocal[averageFreq:first averageFreq:(first averageFreq:flip select avg timeDeltaus from trainingData where timeDeltaus>0)%1000000]
-averageFreq
+"average sample frequency: ", (string averageFreq) ,"Hz"
+delete averageFreq from `.;
+
+
+/get basic stats description of trainingData
+show trainingDataDescription:.ml.describe[trainingData]
+
+
+/"type of each column"
+/type each first trainingData
+
+
+/calculate covariance matrix of trainingData
+/"covariance matrix of trainingData"
+covarianceMatrix:.ml.cvm[flip value flip trainingData] /"flip value flip" performed to strip the vectors from the table
+
+
+/calculate covariance matrix permutations
+fac:{prd 1+til x} /define factorial function
+pn:{[n;k] fac[n]%fac[n-k]} /define permutation function
+"covariance matrix permutations: ", (string pn[count cols trainingData;count cols trainingData])
+
