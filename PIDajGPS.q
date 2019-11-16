@@ -7,11 +7,13 @@
 \p 5001
 
 /load ml toolkit
-\l ml/ml.q 
-.ml.loadfile`:init.q 
+"time (ms) & space (bytes) taken to load ml toolkit"
+\ts \l ml/ml.q
+"time (ms) & space (bytes) taken to initialise ml toolkit"
+\ts .ml.loadfile`:init.q 
 
 /load data
-"time & space taken to load CSVs"
+"time (ms) & space (bytes) taken to load CSVs"
 / \ts GPSData: ("f",(7-1)#"f";enlist csv) 0: `:../../tensorflow/LOG00058.01.gps.csv
 / \ts PIDData: ("ff",(32-2)#"f";enlist csv) 0: `:../../tensorflow/LOG00058.01.csv
 \ts GPSData: ("f",(7-1)#"f";enlist csv) 0: `:../../tensorflow/train_020319_LOG00049_56_58_59_GPS.csv
@@ -110,9 +112,12 @@ delete GPSspeedms from `trainingData;
 
 
 /create new column of sample time deltas
-update timeDeltaus:`float$timeus[i+1]-timeus[i] from `trainingData;
+update timeDeltaus:`float$timeus[i+1]-timeus[i] from `trainingData; /must be float to allow conversion from table to matrix
+update currentSampleHz:1%timeDeltaus%1000000 from `trainingData; 
+trainingData:`currentSampleHz xcols trainingData; /place that new column in front
+trainingData:`GPSspeedkph xcols trainingData; /place that new column in front
+trainingData:`timeDeltaus xcols trainingData; /place that column in front
 update timeus:`float$timeus from `trainingData;
-trainingData:`timeDeltaus xcols trainingData; /place that new column in front
 /`timeus xkey `trainingData; /do not key the table or it will become a dictionary! must be a table to convert to dictionary
 
 /find out average sample rate
