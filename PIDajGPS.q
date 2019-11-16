@@ -47,10 +47,9 @@ PIDData:(`$ssr[;"[/]";""] each trim each string cols PIDData)xcol PIDData
 
 
 /adjust time data such that first time is 0us
-if[res:(PIDData[`timeus] 0)<(GPSData[`timeus] 0); startTime:PIDData[`timeus] 0] /if PID start time is earlier than GPS start time
+if[res:(PIDData[`timeus] 0)<(GPSData[`timeus] 0); startTime:PIDData[`timeus] 0] /if PID start time is earlier than GPS start time /writing "GPSData[`timeus] 0" is the same as writing "first GPSData[`timeus]"
 if[not res; startTime:GPSData[`timeus] 0] /else statement
 delete res from `. ; /delete res variable that is no longer needed
-/writing "GPSData[`timeus] 0" is the same as writing "first GPSData[`timeus]"
 
 update timeus:timeus-startTime from `GPSData;
 
@@ -96,7 +95,7 @@ trainingData;
 / https://stackoverflow.com/questions/34314997/how-to-delete-only-tables-in-kdb
 /![`.;();0b;enlist `fullLog] /if only deleting fullLog (single table)
 /![`.;();0b;enlist `fullLog]
-![`.;();0b;(`fullLog;`GPSData;`PIDData)]; /deletes tables fullLog, GPSData, PIDData
+/![`.;();0b;(`fullLog;`GPSData;`PIDData)]; /deletes tables fullLog, GPSData, PIDData
 
 
 /in trainingData table, convert timestamps from ns to us
@@ -113,6 +112,8 @@ delete GPSspeedms from `trainingData;
 
 /create new column of sample time deltas
 update timeDeltaus:`float$timeus[i+1]-timeus[i] from `trainingData; /must be float to allow conversion from table to matrix
+delete from `trainingData where rcCommand0 = 0n /delete rows where there are no rcCommands0 / these rows are not complete
+/delete from `trainingData where i = (count trainingData)-1 /delete last row created by update timeDeltaus:`float$timeus[i+1]-timeus[i] from `trainingData;
 update currentSampleHz:1%timeDeltaus%1000000 from `trainingData; 
 trainingData:`currentSampleHz xcols trainingData; /place that new column in front
 trainingData:`GPSspeedkph xcols trainingData; /place that new column in front
@@ -135,12 +136,12 @@ delete averageFreq from `.;
 show trainingDataDescription:.ml.describe[trainingData]
 
 
-/"type of each column"
+/"type of each column of trainingData"
 /type each first trainingData
 
 
 /calculate covariance matrix of trainingData
-/"covariance matrix of trainingData"
+"covariance matrix of trainingData"
 covarianceMatrix:.ml.cvm[flip value flip trainingData] /"flip value flip" performed to strip the vectors from the table
 
 
@@ -148,4 +149,3 @@ covarianceMatrix:.ml.cvm[flip value flip trainingData] /"flip value flip" perfor
 fac:{prd 1+til x} /define factorial function
 pn:{[n;k] fac[n]%fac[n-k]} /define permutation function
 "covariance matrix permutations: ", (string pn[count cols trainingData;count cols trainingData])
-
