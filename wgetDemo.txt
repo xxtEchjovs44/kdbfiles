@@ -1,0 +1,4 @@
+#how to use wget and qsl queries to download kdb tables as csv
+#run the kdb process using "rlwrap q PIDajGPS.q"
+#the q script already uses "\p 5001" which sets up a IPC on port 5001 on localhost
+wget -O trainingData.csv http://10.196.190.112:5001/trainingData.csv?select%20from%20trainingData
