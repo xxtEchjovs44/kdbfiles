@@ -16,8 +16,11 @@
 "time (ms) & space (bytes) taken to load CSVs"
 / \ts GPSData: ("f",(7-1)#"f";enlist csv) 0: `:../../tensorflow/LOG00058.01.gps.csv
 / \ts PIDData: ("ff",(32-2)#"f";enlist csv) 0: `:../../tensorflow/LOG00058.01.csv
-\ts GPSData: ("f",(7-1)#"f";enlist csv) 0: `:../../tensorflow/train_020319_LOG00049_56_58_59_GPS.csv
-\ts PIDData: ("ff",(32-2)#"f";enlist csv) 0: `:../../tensorflow/train_020319_LOG00049_56_58_59_PID.csv
+directory: "../../tensorflow/"
+logName: "train_020319_LOG00049_56_58_59"
+
+\ts GPSData: ("f",(7-1)#"f";enlist csv) 0: `$directory,logName,"_GPS.csv"
+\ts PIDData: ("ff",(32-2)#"f";enlist csv) 0: `$directory,logName,"_PID.csv"
 
 
 /trim data
@@ -88,7 +91,6 @@ fullLog:aj0[`timens;GPSData;PIDData];
 /create new log table trainingData of useful features only
 trainingData: select timens,GPSspeedms,rcCommand0,rcCommand1,rcCommand2,rcCommand3,vbatLatestV,gyroADC0,gyroADC1,gyroADC2,accSmooth0,accSmooth1,accSmooth2,motor0,motor1,motor2,motor3 from fullLog
 
-trainingData;
 
 /delete table(s) that is no longer required from default namespace `.
 /garbage collection not necessary???
@@ -103,7 +105,6 @@ update timens:`int$timens%1000 from `trainingData;
 trainingData:`timeus xcol trainingData /rename timeus to timens
 
 
-
 /replace column GPSspeedms with GPSspeedkph
 update GPSspeedkph:GPSspeedms*3.6 from `trainingData;
 trainingData:`GPSspeedkph xcols trainingData; /place that new column in front
@@ -112,8 +113,15 @@ delete GPSspeedms from `trainingData;
 
 /create new column of sample time deltas
 update timeDeltaus:`float$timeus[i+1]-timeus[i] from `trainingData; /must be float to allow conversion from table to matrix
+
+
+/DELETE ROW WITH MISSING DATA /DOUBLE CHECK THESE CONDITIONS
 delete from `trainingData where rcCommand0 = 0n /delete rows where there are no rcCommands0 / these rows are not complete
-/delete from `trainingData where i = (count trainingData)-1 /delete last row created by update timeDeltaus:`float$timeus[i+1]-timeus[i] from `trainingData;
+delete from `trainingData where timeDeltaus = 0n /delete rows where there are no timeDeltaus / these rows are not complete
+delete from `trainingData where timeDeltaus <1 /delete rows where there are skips in time delta due to disjoined logs
+
+
+/create new column that show sample rate
 update currentSampleHz:1%timeDeltaus%1000000 from `trainingData; 
 trainingData:`currentSampleHz xcols trainingData; /place that new column in front
 trainingData:`GPSspeedkph xcols trainingData; /place that new column in front
@@ -127,9 +135,9 @@ update timeus:`float$timeus from `trainingData;
 /the 1st 'first' argument gets list from dictionary (read from right)
 /the 2nd 'first argument' (read from right) gets the first element/atom in the list
 /returns type of -9h to indicate it is a float atom
-averageFreq:reciprocal[averageFreq:first averageFreq:(first averageFreq:flip select avg timeDeltaus from trainingData where timeDeltaus>0)%1000000]
+averageFreq:reciprocal[(first first select avg timeDeltaus from trainingData where timeDeltaus>0)%1000000]
 "average sample frequency: ", (string averageFreq) ,"Hz"
-delete averageFreq from `.;
+/delete averageFreq from `.;
 
 
 /get basic stats description of trainingData
