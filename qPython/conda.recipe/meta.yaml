@@ -1,0 +1,30 @@
+package:
+  name: qpython
+  version: 1.0.3
+
+build:
+    number: 1
+
+requirements:
+  build:
+    - python
+    - numpy
+    - pandas
+    - cython
+    - libpython [win]
+
+  run:
+    - python
+    - numpy
+    - pandas
+
+test:
+  requires:
+    - pytest
+
+  commands:
+    - py.test -x --pyargs qpython
+
+about:
+  home: https://github.com/exxeleron/qPython
+  license: 'Apache License Version 2.0'
