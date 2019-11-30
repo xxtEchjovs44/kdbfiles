@@ -7,21 +7,50 @@
 \p 5001
 
 /load ml toolkit
+\cd /Users/foorx/anaconda3/q
 "time (ms) & space (bytes) taken to load ml toolkit"
-\ts \l ml/ml.q
+\l ml/ml.q
 "time (ms) & space (bytes) taken to initialise ml toolkit"
-\ts .ml.loadfile`:init.q 
+\ts .ml.loadfile`:init.q
 
+\cd /Users/foorx
+\cd
 /load data
-"time (ms) & space (bytes) taken to load CSVs"
-\ts GPSData: ("f",(7-1)#"f";enlist csv) 0: `:../../tensorflow/train_020319_LOG00049_56_58_59_GPS.csv
-\ts PIDData: ("ff",(32-2)#"f";enlist csv) 0: `:../../tensorflow/train_020319_LOG00049_56_58_59_PID.csv
-/logsListTable: ("**";enlist csv) 0:`:../../logs/logsManifest.csv
-/delete x from `logsListTable
-/logsListTable: `logsList xcol logsListTable
-/logsList: flip logsList: enlist raze each logsListTable
-loadlogs:{logsListTable: ("**";enlist csv) 0:`:../../logs/logsManifest.csv; delete x from `logsListTable; logsListTable: `logsList xcol logsListTable; logsList: flip logsList: enlist raze each logsListTable}
-csvCat:{x ss "01.csv"}
+/"time (ms) & space (bytes) taken to load CSVs"
+/GPSData: ("f",(7-1)#"f";enlist csv) 0: `:tensorflow/train_020319_LOG00049_56_58_59_GPS.csv
+/ PIDData: ("ff",(32-2)#"f";enlist csv) 0: `:tensorflow/train_020319_LOG00049_56_58_59_PID.csv
+
+//define gps and PID csv enlisting functions
+enlistGPSCSV:{("f",(7-1)#"f";enlist csv) 0:x}
+enlistPIDCSV:{("ff",(32-2)#"f";enlist csv) 0:x}
+
+/use with php upload interface
+\cd /Users/foorx/logs
+show logsListTable: ("**";enlist csv) 0: `:logsManifest.csv
+//select only files column from logsListTable and assign to logsList as list
+logsList: `$raze flip enlist raze each logsListTable[(cols logsListTable) 1]
+/delete logsListTable from `.
+
+/GPSData: ("f",(7-1)#"f";enlist csv) 0: `$directory,logName,"_GPS.csv"
+/ \ts PIDData: ("ff",(32-2)#"f";enlist csv) 0: `$directory,logName,"_PID.csv"
+
+/load master data
+/define the master table
+masterTable: {enlistGPSCSV[first (x) ]} logsList
+
+appendToMasterTable:{`masterTable set masterTable,enlistGPSCSV[(x)]}
+/logsList@til count logsList
+appendToMasterTable[logsList 0]
+appendToMasterTable[logsList 1]
+appendToMasterTable[logsList 2]
+appendToMasterTable[logsList 3]
+appendToMasterTable[logsList 4]
+appendToMasterTable[logsList 5]
+count masterTable
+
+
+
+
 
 
 /trim data
