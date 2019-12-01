@@ -3,7 +3,7 @@
 /head -1 tensorflow/LOG00058.01.gps.csv | sed 's/[^,]//g' | wc -c
 /head -1 tensorflow/LOG00058.01.csv | sed 's/[^,]//g' | wc -c
 
-/start IPC TCP/IP broadcast on port 5001
+/start IPC TCP/IP broadcast on port 5001 if not already enabled
 \p 5001
 
 /load ml toolkit
@@ -13,20 +13,16 @@
 "time (ms) & space (bytes) taken to initialise ml toolkit"
 \ts .ml.loadfile`:init.q
 
-\cd /Users/foorx
-\cd
-/load data
-/"time (ms) & space (bytes) taken to load CSVs"
-/GPSData: ("f",(7-1)#"f";enlist csv) 0: `:tensorflow/train_020319_LOG00049_56_58_59_GPS.csv
-/ PIDData: ("ff",(32-2)#"f";enlist csv) 0: `:tensorflow/train_020319_LOG00049_56_58_59_PID.csv
-
 //define gps and PID csv enlisting functions
 enlistGPSCSV:{("f",(7-1)#"f";enlist csv) 0:x}
 enlistPIDCSV:{("ff",(32-2)#"f";enlist csv) 0:x}
 
 /use with php upload interface
 \cd /Users/foorx/logs
-show logsListTable: ("**";enlist csv) 0: `:logsManifest.csv
+/read CSV containing files just uploaded to logs folder
+logsListTable: ("I*";enlist csv) 0: `:logsManifest.csv
+/remove non-valid rows
+logsListTable: select from logsListTable where dummyColumn <> 0N  //write function that determines if it is a GPS or PID csv!!
 //select only files column from logsListTable and assign to logsList as list
 logsList: `$raze flip enlist raze each logsListTable[(cols logsListTable) 1]
 /delete logsListTable from `.
@@ -36,22 +32,27 @@ logsList: `$raze flip enlist raze each logsListTable[(cols logsListTable) 1]
 
 /load master data
 /define the master table
-masterTable: {enlistGPSCSV[first (x) ]} logsList
-
+masterTable: {enlistGPSCSV[first (x) ]} logsList / use first log to initialise master table
+logsList: 1_logsList /drop first log already loaded
 appendToMasterTable:{`masterTable set masterTable,enlistGPSCSV[(x)]}
-/logsList@til count logsList
-appendToMasterTable[logsList 0]
-appendToMasterTable[logsList 1]
-appendToMasterTable[logsList 2]
-appendToMasterTable[logsList 3]
-appendToMasterTable[logsList 4]
-appendToMasterTable[logsList 5]
+appendToMasterTable each logsList /load the rest of the logs in
 count masterTable
 
+:1
 
+/
+//DO NOT USE THIS FUNCTION AS IT WILL RESET logsManifest.csv PERMISSIONS! WILL CAUSE PHP SCRIPT TO STOP WORKING
+//erase logsList to prep for next upload cycle
+logsManifest:([]dummyColumn:(); Files:())
+save `logsManifest.csv
+\
 
-
-
+\cd /Users/foorx
+\cd
+/load data
+"time (ms) & space (bytes) taken to load CSVs"
+GPSData: ("f",(7-1)#"f";enlist csv) 0: `:tensorflow/train_020319_LOG00049_56_58_59_GPS.csv
+PIDData: ("ff",(32-2)#"f";enlist csv) 0: `:tensorflow/train_020319_LOG00049_56_58_59_PID.csv
 
 /trim data
 GPSData:(`$ssr[;" ";""] each trim each string cols GPSData)xcol GPSData
@@ -167,7 +168,7 @@ update timeus:`float$timeus from `trainingData;
 /returns type of -9h to indicate it is a float atom
 averageFreq:reciprocal[averageFreq:first averageFreq:(first averageFreq:flip select avg timeDeltaus from trainingData where timeDeltaus>0)%1000000]
 "average sample frequency: ", (string averageFreq) ,"Hz"
-delete averageFreq from `.;
+/ delete averageFreq from `.;
 
 
 /get basic stats description of trainingData
