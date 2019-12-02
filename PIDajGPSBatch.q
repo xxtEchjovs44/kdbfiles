@@ -38,8 +38,6 @@ appendToMasterTable:{`masterTable set masterTable,enlistGPSCSV[(x)]}
 appendToMasterTable each logsList /load the rest of the logs in
 count masterTable
 
-:1
-
 /
 //DO NOT USE THIS FUNCTION AS IT WILL RESET logsManifest.csv PERMISSIONS! WILL CAUSE PHP SCRIPT TO STOP WORKING
 //erase logsList to prep for next upload cycle
@@ -182,7 +180,9 @@ show trainingDataDescription:.ml.describe[trainingData]
 /calculate covariance matrix of trainingData
 "covariance matrix of trainingData"
 covarianceMatrix:.ml.cvm[flip value flip trainingData] /"flip value flip" performed to strip the vectors from the table
-
+covarianceVector:raze covarianceMatrix
+covarianceTable: ([] featurePair:idesc covarianceVector; covarianceValue: desc covarianceVector)
+top50PC: select[50] from covarianceTable 
 
 /calculate covariance matrix permutations
 fac:{prd 1+til x} /define factorial function
