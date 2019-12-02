@@ -2,6 +2,9 @@
 /to count number of columns in csv:
 /head -1 tensorflow/LOG00058.01.gps.csv | sed 's/[^,]//g' | wc -c
 /head -1 tensorflow/LOG00058.01.csv | sed 's/[^,]//g' | wc -c
+/wget localhost:5001/
+
+/IMPLEMENT MULTILINE FUNCTION DEFINITIONS AFTER CEMENTING THE SCRIPT FUNCTIONS
 
 /start IPC TCP/IP broadcast on port 5001 if not already enabled
 \p 5001
@@ -17,6 +20,7 @@
 enlistGPSCSV:{("f",(7-1)#"f";enlist csv) 0:x}
 enlistPIDCSV:{("ff",(32-2)#"f";enlist csv) 0:x}
 
+
 /use with php upload interface
 \cd /Users/foorx/logs
 /read CSV containing files just uploaded to logs folder
@@ -30,13 +34,15 @@ logsList: `$raze flip enlist raze each logsListTable[(cols logsListTable) 1]
 /GPSData: ("f",(7-1)#"f";enlist csv) 0: `$directory,logName,"_GPS.csv"
 / \ts PIDData: ("ff",(32-2)#"f";enlist csv) 0: `$directory,logName,"_PID.csv"
 
-/load master data
-/define the master table
-masterTable: {enlistGPSCSV[first (x) ]} logsList / use first log to initialise master table
-logsList: 1_logsList /drop first log already loaded
-appendToMasterTable:{`masterTable set masterTable,enlistGPSCSV[(x)]}
-appendToMasterTable each logsList /load the rest of the logs in
-count masterTable
+
+/load master data for GPS logs
+/attempt to load splayed master records table from disk if it exists
+masterTable: get `:/Users/foorx/anaconda3/q/m64/GPSMasterTable1
+/otherwise create new master table if splayed table didn't load
+if[not `masterTable in key`.; masterTable: {enlistGPSCSV[first (x) ]} logsList; logsList: 1_logsList] / use first log to initialise master table /drop first log already loaded
+{`masterTable set masterTable,enlistGPSCSV[(x)]} each logsList /load the rest of the logs in
+`:/Users/foorx/anaconda3/q/m64/GPSMasterTable set masterTable /save updated table
+
 
 /
 //DO NOT USE THIS FUNCTION AS IT WILL RESET logsManifest.csv PERMISSIONS! WILL CAUSE PHP SCRIPT TO STOP WORKING
@@ -172,17 +178,26 @@ averageFreq:reciprocal[averageFreq:first averageFreq:(first averageFreq:flip sel
 /get basic stats description of trainingData
 show trainingDataDescription:.ml.describe[trainingData]
 
-
-/"type of each column of trainingData"
-/type each first trainingData
-
-
 /calculate covariance matrix of trainingData
 "covariance matrix of trainingData"
 covarianceMatrix:.ml.cvm[flip value flip trainingData] /"flip value flip" performed to strip the vectors from the table
 covarianceVector:raze covarianceMatrix
 covarianceTable: ([] featurePair:idesc covarianceVector; covarianceValue: desc covarianceVector) /sort by decreasing covariance
-top50PCTable: select[50] from covarianceTable 
+selectedNumComponents: 50
+selectedPCTable: select[selectedNumComponents] from covarianceTable
+covarianceExplanationPercentage: first raze/[(select[selectedNumComponents] covarianceValue from covarianceTable) % sum(covarianceVector)]
+
+/
+//DOUBLE CHECK WHAT THESE FUNCTIONS ARE RETURNING!
+iterateNumComponents:{[selectedNumComponents] covarianceExplanationPercentage: first raze/[(select[selectedNumComponents] covarianceValue from covarianceTable) % sum(covarianceVector)]} 
+maxComponents: `int$sqrt[1721344]
+componentNumVector: 200*1+til 50
+componentNumVector: 1+ til maxComponents
+\ts resultsFromComponentsVector:iterateNumComponents each componentNumVector
+resultsFromComponentsTable:([] numOfComponents: componentNumVector[idesc resultsFromComponents]; covarianceValue: desc resultsFromComponents)
+\
+
+
 
 /calculate covariance matrix permutations
 fac:{prd 1+til x} /define factorial function
