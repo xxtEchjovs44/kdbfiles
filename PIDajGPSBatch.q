@@ -181,8 +181,8 @@ show trainingDataDescription:.ml.describe[trainingData]
 "covariance matrix of trainingData"
 covarianceMatrix:.ml.cvm[flip value flip trainingData] /"flip value flip" performed to strip the vectors from the table
 covarianceVector:raze covarianceMatrix
-covarianceTable: ([] featurePair:idesc covarianceVector; covarianceValue: desc covarianceVector)
-top50PC: select[50] from covarianceTable 
+covarianceTable: ([] featurePair:idesc covarianceVector; covarianceValue: desc covarianceVector) /sort by decreasing covariance
+top50PCTable: select[50] from covarianceTable 
 
 /calculate covariance matrix permutations
 fac:{prd 1+til x} /define factorial function
