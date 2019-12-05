@@ -7,7 +7,11 @@
 /IMPLEMENT MULTILINE FUNCTION DEFINITIONS AFTER CEMENTING THE SCRIPT FUNCTIONS
 
 /start IPC TCP/IP broadcast on port 5001 if not already enabled
-\p 5001
+/\p 5001
+/\p /display port for confirmation
+
+/upgrade http protocol to websocket
+/.z.ws:{neg[.z.w] -8! @[value;x;{`$ "'",x}]}
 
 /load ml toolkit
 \cd /Users/foorx/anaconda3/q
@@ -37,11 +41,16 @@ logsList: `$raze flip enlist raze each logsListTable[(cols logsListTable) 1]
 
 /load master data for GPS logs
 /attempt to load splayed master records table from disk if it exists
-masterTable: get `:/Users/foorx/anaconda3/q/m64/GPSMasterTable1
+masterTable: get `:/Users/foorx/anaconda3/q/m64/GPSMasterTable
 /otherwise create new master table if splayed table didn't load
+
+/add function to label each new log appended!
 if[not `masterTable in key`.; masterTable: {enlistGPSCSV[first (x) ]} logsList; logsList: 1_logsList] / use first log to initialise master table /drop first log already loaded
-{`masterTable set masterTable,enlistGPSCSV[(x)]} each logsList /load the rest of the logs in
+{`masterTable set masterTable,enlistGPSCSV[(x)]} each logsList; /load the rest of the logs in
 `:/Users/foorx/anaconda3/q/m64/GPSMasterTable set masterTable /save updated table
+
+"number of datapoints in masterTable:"
+count masterTable
 
 
 /
@@ -52,7 +61,12 @@ save `logsManifest.csv
 \
 
 \cd /Users/foorx
-\cd
+
+directory: "tensorflow/"
+logName: "train_020319_LOG00049_56_58_59"
+
+\ts GPSData: ("f",(7-1)#"f";enlist csv) 0: `$directory,logName,"_GPS.csv"
+\ts PIDData: ("ff",(32-2)#"f";enlist csv) 0: `$directory,logName,"_PID.csv"
 /load data
 "time (ms) & space (bytes) taken to load CSVs"
 GPSData: ("f",(7-1)#"f";enlist csv) 0: `:tensorflow/train_020319_LOG00049_56_58_59_GPS.csv
@@ -151,9 +165,9 @@ update timeDeltaus:`float$timeus[i+1]-timeus[i] from `trainingData; /must be flo
 
 
 /DELETE ROW WITH MISSING DATA /DOUBLE CHECK THESE CONDITIONS
-delete from `trainingData where rcCommand0 = 0n /delete rows where there are no rcCommands0 / these rows are not complete
-delete from `trainingData where timeDeltaus = 0n /delete rows where there are no timeDeltaus / these rows are not complete
-delete from `trainingData where timeDeltaus <1 /delete rows where there are skips in time delta due to disjoined logs
+delete from `trainingData where rcCommand0 = 0n ; /delete rows where there are no rcCommands0 / these rows are not complete
+delete from `trainingData where timeDeltaus = 0n; /delete rows where there are no timeDeltaus / these rows are not complete
+delete from `trainingData where timeDeltaus <1; /delete rows where there are skips in time delta due to disjoined logs
 
 
 /create new column that show sample rate
